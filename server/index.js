@@ -7,7 +7,7 @@ const users = new Map();
 
 const server = io.listen(3000);
 server.on('connection', (socket) => {
-    console.log('(Server): Client connected successfully.');
+    console.log('(Server): Client connected successfully');
 
     const user = {
         socket,
@@ -90,7 +90,7 @@ server.on('connection', (socket) => {
 
     socket.on(messages.client.CHANNEL_ENTER_REQ, (name) => {
         if (channels.has(name) === false) {
-            socket.emit(messages.SERVER_RESULT_INF, 'CHANNEL_ENTER_REQ: Channel not found.');
+            socket.emit(messages.SERVER_RESULT_INF, 'CHANNEL_ENTER_REQ: Channel not found');
             return false;
         }
 
@@ -124,6 +124,7 @@ server.on('connection', (socket) => {
         channel.users = channel.users.filter((u) => u.nick !== user.nick);
         channel.users.forEach((u) => u.socket.emit(messages.server.CHANNEL_USER_LEAVE_INF, {
             user: user.nick,
+            reason: 'leave',
         }));
 
         return true;
@@ -157,8 +158,8 @@ server.on('connection', (socket) => {
             return false;
         }
 
-        const dest = users.get(destination);
-        dest.socket.emit(messages.server.WHISPER_INF, {
+        const otherUser = users.get(destination);
+        otherUser.socket.emit(messages.server.WHISPER_INF, {
             from: user.name,
             message,
         });
@@ -192,7 +193,17 @@ server.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('(Server): User disconnected !!!');
-        // TODO: notify users of all channels
+        user.channels.forEach((c) => {
+            c.users = c.users.filter((u) => u.nick !== user.nick);
+            c.forEach((u) => {
+                if (u.nick === user.nick) return;
+                u.socket.emit(messages.server.CHANNEL_USER_LEAVE_INF, {
+                    user: user.nick,
+                    reason: 'disconnect',
+                });
+            });
+        });
+        users.delete(user.nick);
     });
 });
 
@@ -230,4 +241,6 @@ client.on('connect', async () => {
     client.emit(messages.client.CHANNEL_USER_LIST_REQ, '#200_ok');
 
     client.emit(messages.client.MESSAGE_REQ, '#200_ok', 'BONJOUR LE MONDE !');
+
+    client.disconnect();
 });
