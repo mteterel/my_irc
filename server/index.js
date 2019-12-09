@@ -1,11 +1,12 @@
 import io from 'socket.io';
 import ioc from 'socket.io-client';
 import messages from './messages';
+import { IRC_Channel } from './types';
 
 const channels = new Map();
 const users = new Map();
 
-const server = io.listen(3000);
+const server = io.listen(6112);
 server.on('connection', (socket) => {
     console.log('(Server): Client connected successfully');
 
@@ -60,13 +61,18 @@ server.on('connection', (socket) => {
             return false;
         }
 
-        const channel = { name, users: [user] };
+        if (name.startsWith('#') === false) {
+            name = `#${name}`;
+        }
+
+        const channel = new IRC_Channel(name);
+        channel.users.push(user);
         channels.set(name, channel);
 
-        socket.emit(messages.CHANNEL_CREATE_ACK, {
+        socket.emit(messages.server.CHANNEL_CREATE_ACK, {
             succeed: true,
             name,
-            users: channel.users.map((u) => u.name),
+            users: channel.users.map(u => u.name),
         });
 
         return true;
@@ -96,7 +102,7 @@ server.on('connection', (socket) => {
 
         const channel = channels.get(name);
         channel.users.forEach((u) => {
-            u.emit(messages.server.CHANNEL_USER_JOIN_INF, {
+            u.socket.emit(messages.server.CHANNEL_USER_JOIN_INF, {
                 channel: channel.name,
                 user,
             });
@@ -207,10 +213,12 @@ server.on('connection', (socket) => {
     });
 });
 
+
 // =====================================
 // TEST CLIENT IMPLEMENTATION
 // =====================================
-const client = ioc('ws://localhost:3000');
+/*
+const client = ioc('ws://localhost:6112');
 client.on('connect', async () => {
     console.log('(Client): me the client connected !');
 
@@ -237,10 +245,12 @@ client.on('connect', async () => {
     client.emit(messages.client.CHANNEL_CREATE_REQ, '#200_ok');
     client.emit(messages.client.CHANNEL_LIST_REQ);
     client.emit(messages.client.CHANNEL_LIST_REQ, 'kkk');
+    client.emit(messages.client.CHANNEL_LIST_REQ, 'ok');
     client.emit(messages.client.CHANNEL_USER_LIST_REQ, '#404_not_found');
     client.emit(messages.client.CHANNEL_USER_LIST_REQ, '#200_ok');
 
     client.emit(messages.client.MESSAGE_REQ, '#200_ok', 'BONJOUR LE MONDE !');
 
-    client.disconnect();
+    // client.disconnect();
 });
+ */

@@ -1,18 +1,23 @@
 export class IRC_Client {
-    socket = null;
-    nickname = null;
-    joinedChannels = [];
-
     constructor(socket) {
         this.socket = socket;
+        this.nickname = null;
+        this.joinedChannels = [];
+    }
+
+    hasJoinedChannel(channel) {
+        return this.joinedChannels.includes(channel);
     }
 }
 
 export class IRC_Channel {
-    name: null;
-    users = [];
-
     constructor(name) {
         this.name = name;
+        this.users = [];
+        this.messages = [];
+    }
+
+    hasUser(user) {
+        return this.users.includes(user);
     }
 }
