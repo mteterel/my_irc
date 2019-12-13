@@ -1,35 +1,38 @@
-import React from 'react';
-import { Input } from '@salesforce/design-system-react';
+import React, {Component} from 'react';
+import {Input} from "antd";
 
-class MessageInput extends React.Component {
-    static defaultProps = {
-        onSubmit: null
-    };
-
+class MessageInput extends Component {
     constructor(props) {
         super(props);
         this.state = {
+            isLoading: false,
             userInput: ''
         };
 
-        this.handleInputChange = this.handleInputChange.bind(this);
+        this.handleChange = this.handleChange.bind(this);
         this.handleKeyDown = this.handleKeyDown.bind(this);
     }
 
-    handleInputChange(e) {
-        this.setState({userInput: e.target.value});
+    handleChange(e) {
+        this.setState({ userInput: e.target.value });
     }
 
     handleKeyDown(e) {
-        if (e.key === 'Enter' && this.props.onSubmit && this.props.onSubmit(this.state.userInput)) {
-            this.setState({userInput: ''});
+        if (e.key === "Enter") {
+            this.props.onSubmitMessage(e.target.value);
+            this.setState({ userInput: ''});
         }
     }
 
     render() {
         return (
-            <Input placeholder={"Type a message then press Enter"} value={this.state.userInput} onChange={this.handleInputChange} onKeyDown={this.handleKeyDown}/>
-        )
+            <div>
+                <Input placeholder={"Type text and press ENTER"}
+                              value={this.state.userInput}
+                              onChange={this.handleChange}
+                              onKeyDown={this.handleKeyDown}/>
+            </div>
+        );
     }
 }
 

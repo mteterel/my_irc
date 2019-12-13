@@ -1,190 +1,203 @@
-import React from 'react';
+import React, {Component} from 'react';
+import {Badge, Tabs} from "antd";
+import ChatView from "./components/ChatView";
+import LoginModal from "./components/LoginModal";
+import io from 'socket.io-client';
+import 'antd/dist/antd.css';
 import './App.css';
-import { IconSettings, TabsPanel, Tabs } from '@salesforce/design-system-react';
-import '@salesforce-ux/design-system/assets/styles/salesforce-lightning-design-system.min.css';
-import ChatView from './components/ChatView';
-import IRC_Client from './net/irc';
-import messages from './net/messages';
 
-class App extends React.Component {
-    static systemChannel = {
-        isSystemChannel: true,
+class App extends Component {
+    static defaultJoinMessages = [
+        "To enter a channel, type /join [channel name]. You can obtain the channel list by typing /list",
+        "To get a list of available commands, type /help"
+    ];
+
+    static defaultSystemChannel = {
         name: "System",
-        messages: [],
+        messages: [{
+            type: "system",
+            content: "Welcome to my_irc !"
+        }],
         users: [],
-        unreadCount: 0,
+        unreadMessages: 0,
     };
 
     constructor(props) {
         super(props);
-        this.state = {
-            connecting: false,
-            channels: [App.systemChannel],
-            systemChannel: {},
-            selectedTabIndex: 0,
-            selectedChannel: App.systemChannel,
-        };
-        this.client = new IRC_Client();
-
-        this.handleSubmitMessage = this.handleSubmitMessage.bind(this);
+        this.state = {isLoggedIn: false, channels: [], userNickname: '', activeChannel: null};
+        this.socket = io.connect("ws://localhost:6112");
+        this.bindMessageEvents(this.socket);
+        this.onSubmitLogin = this.onSubmitLogin.bind(this);
+        this.onSubmitMessage = this.onSubmitMessage.bind(this);
+        this.onChannelTabChange = this.onChannelTabChange.bind(this);
     }
 
     componentDidMount() {
-        this.setState({connecting: true});
-        this.client.connect(() => {
-            this.setState({connecting: false});
-            this.bindHandlers(this.client.socket);
+        this.setState({
+            channels: [App.defaultSystemChannel],
+            userNickname: null,
+            activeChannel: App.defaultSystemChannel
         });
-        this.client.socket.emit(messages.client.CHANNEL_CREATE_REQ, '#webacademie2021');
-        this.client.socket.emit(messages.client.CHANNEL_CREATE_REQ, '#ohepimerde');
     }
 
-    onChannelTabChanged(newIndex, oldIndex) {
-        const selectedChannel = this.state.channels[newIndex];
-
-        this.setState({
-            selectedTabIndex: newIndex,
-            selectedChannel: selectedChannel
+    bindMessageEvents(socket) {
+        socket.on('NICK_CHANGE_ACK', (nickname, success) => {
+            if (success) {
+                this.setState({userNickname: nickname}, () => {
+                    this.state.channels.forEach((v) => {
+                        v.messages.push({
+                            type: "system",
+                            content: "Your nickname has been set to " + nickname
+                        });
+                    });
+                    this.forceUpdate();
+                });
+            }
+            else {
+                this.state.channels.forEach((v) => {
+                    v.messages.push({
+                        type: "system",
+                        content: "This nickname is already in use"
+                    });
+                });
+                this.forceUpdate();
+            }
         });
 
-        if (selectedChannel.unreadCount > 0) {
-            selectedChannel.unreadCount = 0;
+        socket.on('CHANNEL_USER_JOIN_INF', (channelName, userNickname) => {
+            const channel = this.state.channels.find(v => v.name === channelName);
+            channel.messages.push({type: "system", content: `${userNickname} joined ${channelName}`});
+            channel.users.push({role: "user", nickname: userNickname});
             this.forceUpdate();
+        });
+
+        socket.on('CHANNEL_USER_LEAVE_INF', (channelName, userNickname, reason) => {
+            const channel = this.state.channels.find(v => v.name === channelName);
+            channel.messages.push({type: "system", content: `${userNickname} left ${channelName} (${reason})`});
+            channel.users = channel.users.filter(v => v.nickname !== userNickname);
+            this.forceUpdate();
+        });
+
+        socket.on('CHANNEL_JOIN_ACK', (channelName, channelUsers, channelHistory) => {
+            this.setState({
+                channels: [...this.state.channels, {
+                    name: channelName,
+                    messages: channelHistory,
+                    users: channelUsers,
+                    unreadMessages: 0
+                }]
+            });
+        });
+
+        socket.on('CHANNEL_LEAVE_ACK', (channelName) => {
+            this.setState({channels: this.state.channels.filter(v => v.name !== channelName)});
+        });
+
+        socket.on('CHANNEL_MESSAGE_INF', (channelName, senderNickname, content) => {
+            const channel = this.state.channels.find(v => v.name === channelName);
+            if (channel.name !== this.state.activeChannel.name)
+                channel.unreadMessages++;
+            channel.messages.push({type: "user", from: senderNickname, content: content});
+            this.forceUpdate();
+        });
+
+        socket.on('NICK_CHANGE_INF', (previousNick, newNick) => {
+            if (previousNick !== this.state.userNickname && newNick !== this.state.userNickname)
+            {
+                this.state.channels.forEach(v => {
+                    const otherUser = v.users.find(v => v.nickname === previousNick);
+                    if (otherUser)
+                        otherUser.nickname = newNick;
+
+                    v.messages.push({
+                        type: "system",
+                        content: `${previousNick} just changed his nickname to ${newNick}`
+                    });
+                });
+                this.forceUpdate();
+            }
+        });
+
+        socket.on('CHANNEL_LIST_INF', (count, channels) => {
+            this.state.activeChannel.messages.push({
+                type: "system",
+                content: `There are ${count} channels on this server: ${channels.map(v => `[${v}] `)}`
+            });
+            this.forceUpdate();
+        });
+
+        socket.on('CHANNEL_USER_LIST_INF', (count, users) => {
+            this.state.activeChannel.messages.push({
+                type: "system",
+                content: `There are ${count} users on this channel: ${users.map(v => `[@${v}] `)}`
+            });
+            this.forceUpdate();
+        });
+    }
+
+    onSubmitLogin(nickname, callback) {
+        this.socket.emit("NICK_CHANGE_REQ", nickname, (success) => {
+            callback(success);
+
+            if (success) {
+                this.setState({isLoggedIn: true}, () => {
+                    this.initializePostLogin();
+                    this.forceUpdate();
+                });
+            }
+        });
+    }
+
+    onSubmitMessage(userMessage) {
+        if (userMessage === "join") {
+            this.socket.emit('JOIN_CHANNEL_REQ', '#webacademie', () => {
+            });
+        } else if (userMessage === "create") {
+            this.socket.emit('CREATE_CHANNEL_REQ', '#webacademie', () => {
+            });
+        } else if (userMessage === "nick") {
+            this.socket.emit('NICK_CHANGE_REQ', 'this is a test nick', () => {
+            });
+        } else if (userMessage === "leave") {
+            this.socket.emit('LEAVE_CHANNEL_REQ', '#webacademie', () => {
+            });
+        } else {
+            this.socket.emit('CHANNEL_MESSAGE_REQ', '#webacademie', userMessage, () => {
+            });
         }
     }
 
-    bindHandlers(socket) {
-        socket.on(messages.SERVER_RESULT_INF, (message) => {
-            const c = this.state.channels[this.state.selectedTabIndex];
-            c.messages.push({
-                type: "SYSTEM",
-                systemType: "ERROR",
-                content: message
+    initializePostLogin() {
+        const channel = this.state.channels.find((v) => v.name === "System");
+        if (channel) {
+            App.defaultJoinMessages.forEach((v) => {
+                channel.messages.push({type: "system", content: v});
             });
-            this.forceUpdate();
-        });
-
-        socket.on(messages.SERVER_ERROR_INF, (message) => {
-            const c = this.state.channels[this.state.selectedTabIndex];
-            c.messages.push({
-                type: "SYSTEM",
-                systemType: "ERROR",
-                content: message
-            });
-            this.forceUpdate();
-        });
-
-        socket.on(messages.server.CHANNEL_ENTER_ACK, (data) => {
-            this.state.channels.push({
-                name: data.channel,
-                messages: data.history.map(msg => {
-                    return {
-                        type: "USER",
-                        from: msg.from,
-                        content: msg.content
-                    }
-                }),
-                users: data.users
-            });
-            this.forceUpdate();
-        });
-
-        socket.on(messages.server.CHANNEL_LEAVE_ACK, (channelName) => {
-            if (this.state.selectedChannel.name === channelName) {
-                this.state.selectedChannel = App.systemChannel;
-            }
-
-            this.state.channels = this.state.channels.filter(v => v.name !== channelName);
-            this.forceUpdate();
-        });
-
-        socket.on(messages.server.CHANNEL_CREATE_ACK, (data) => {
-            if (false === data.succeed) {
-                const c = this.state.selectedChannel;
-                c.messages.push({
-                    type: "SYSTEM",
-                    systemType: "ERROR",
-                    content: "Channel " + data.name + " already exists"
-                });
-            }
-            else if (true === data.succeed) {
-                this.state.channels.push({
-                    name: data.name,
-                    messages: [],
-                    users: data.users
-                });
-            }
-            this.forceUpdate();
-        });
-
-        socket.on(messages.server.CHANNEL_USER_JOIN_INF, (data) => {
-            const c = this.state.channels.find(v => v.name === data.channel);
-            c.messages.push({
-                type: "SYSTEM",
-                systemType: "INFO",
-                content: `User '${data.nick}' joined the channel`
-            });
-            c.users.push(data.nick);
-            this.forceUpdate();
-        });
-
-        socket.on(messages.server.MESSAGE_INF, (data) => {
-            const c = this.state.channels.find(v => v.name === data.channel);
-            c.messages.push({
-                type: "USER",
-                from: data.from,
-                content: data.message
-            });
-
-            if (this.state.selectedChannel !== c)
-                c.unreadCount += 1;
-
-            this.forceUpdate();
-        });
-
-        socket.on(messages.server.CHANNEL_USER_LEAVE_INF, (data) => {
-            const reason = data.reason === 'leave' ? 'User Leave' : 'IRC Quit';
-            const c = this.state.channels.find(v => v.name === data.channel);
-            c.messages.push({
-                type: "SYSTEM",
-                systemType: "INFO",
-                content: data.nick + ' left the channel (' + reason + ')'
-            });
-            c.users = c.users.filter((u) => u !== data.nick);
-
-            if (this.state.selectedChannel !== c)
-                c.unreadCount += 1;
-
-            this.forceUpdate();
-        });
-    }
-
-    handleSubmitMessage(input) {
-        this.client.socket.emit(messages.client.MESSAGE_REQ,
-            this.state.selectedChannel.name,
-            input
-        );
-
-        return true;
+            channel.users.push({name: this.state.userNickname});
+        }
     }
 
     render() {
         return (
             <div className={"App"}>
-                <IconSettings iconPath="/assets/icons">
-                    <Tabs onSelect={this.onChannelTabChanged.bind(this)}>
-                        {this.state.channels.map((value, index) => {
-                            return (
-                                <TabsPanel label={value.name + (value.unreadCount ? ` (${value.unreadCount})` : "")}
-                                           key={index}>
-                                    <ChatView channel={value} onSubmitMessage={this.handleSubmitMessage}/>
-                                </TabsPanel>
-                            )
-                        })}
-                    </Tabs>
-                </IconSettings>
+                {!this.state.isLoggedIn && <LoginModal onSubmitLogin={this.onSubmitLogin}/>}
+                <Tabs onChange={this.onChannelTabChange}>
+                    {this.state.channels.map((v, index) =>
+                        <Tabs.TabPane
+                            tab={<Badge count={v.unreadMessages} dot><span>{v.name}</span></Badge>}
+                            key={v.name}>
+                            <ChatView channel={v} onSubmitMessage={this.onSubmitMessage}/>
+                        </Tabs.TabPane>
+                    )}
+                </Tabs>
             </div>
         );
+    }
+
+    onChannelTabChange(activeChannel) {
+        const channel = this.state.channels.find(v => v.name === activeChannel);
+        channel.unreadMessages = 0;
+        this.setState({ activeChannel: channel });
     }
 }
 

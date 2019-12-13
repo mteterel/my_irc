@@ -1,36 +1,23 @@
-import React from 'react';
-import { Style } from 'react';
+import React, {Component} from 'react';
+import {Button, List} from "antd";
 
-class MessageList extends React.Component
-{
-    static defaultProps = {
-        messages: []
-    };
-
+class MessageList extends Component {
     render() {
         return (
             <div>
-                <h1>Messages</h1>
-                <ul>
-                    {this.props.messages.map((value, index) => {
-                        let content = value.content;
-                        if (value.type === "SYSTEM")
-                            content = "(SYSTEM] " + content;
-                        else if (value.type === "USER")
-                            content = value.from + ": " + content;
-                        return <li style={value.type === "SYSTEM" ? styles.systemMessage : null} key={index}>{content}</li>;
-                    })}
-                </ul>
+                <List
+                    size="small"
+                    dataSource={this.props.messages}
+                    renderItem={item => (
+                        <List.Item>
+                            <span style={{fontWeight: "bold"}}>{item.type === "system" ? "[System Message]" : item.from}:&nbsp;</span>
+                            <span>{item.content}</span>
+                        </List.Item>
+                    )}
+                />
             </div>
         );
     }
 }
-
-const styles = {
-    systemMessage: {
-        color: "red",
-        fontWeight: "bold"
-    },
-};
 
 export default MessageList;

@@ -1,29 +1,19 @@
-import React from 'react';
-import UserList from "./UserList";
+import React, {Component} from 'react';
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
+import UserList from "./UserList";
 
-class ChatView extends React.Component
-{
-    static defaultProps = {
-        channel: null,
-        showUserList: true,
-        onSubmitMessage: null
-    };
+class ChatView extends Component {
+    constructor(props) {
+        super(props);
+    }
 
     render() {
         return (
-            <div className="slds-grid slds-gutters">
-                <div className="slds-col slds-size_10-of-12 slds-border_top slds-border_bottom slds-border_left slds-border_right messages">
-                    <MessageList messages={this.props.channel.messages}/>
-                    <MessageInput onSubmit={this.props.onSubmitMessage}/>
-                </div>
-                {this.props.showUserList && !this.props.channel.isSystemChannel &&
-                    <div
-                        className="slds-col slds-size_2-of-12 slds-border_top slds-border_bottom slds-border_left slds-border_right userList">
-                        <UserList users={this.props.channel.users}/>
-                    </div>
-                }
+            <div>
+                <MessageList messages={this.props.channel.messages}/>
+                <MessageInput onSubmitMessage={this.props.onSubmitMessage}/>
+                {this.props.channel.name !== "System" && <UserList users={this.props.channel.users}/>}
             </div>
         );
     }
