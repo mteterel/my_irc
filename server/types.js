@@ -20,4 +20,10 @@ export class IRC_Channel {
     hasUser(user) {
         return this.users.includes(user);
     }
+
+    broadcast(type, data) {
+        this.users.forEach((u) => {
+            u.socket.emit(type, data);
+        });
+    }
 }

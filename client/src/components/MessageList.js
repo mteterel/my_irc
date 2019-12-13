@@ -7,10 +7,6 @@ class MessageList extends React.Component
         messages: []
     };
 
-    constructor(props) {
-        super(props);
-    }
-
     render() {
         return (
             <div>
@@ -20,6 +16,8 @@ class MessageList extends React.Component
                         let content = value.content;
                         if (value.type === "SYSTEM")
                             content = "(SYSTEM] " + content;
+                        else if (value.type === "USER")
+                            content = value.from + ": " + content;
                         return <li style={value.type === "SYSTEM" ? styles.systemMessage : null} key={index}>{content}</li>;
                     })}
                 </ul>

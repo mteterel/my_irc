@@ -16,7 +16,7 @@ class UserList extends React.Component
                 <h1>List of Users</h1>
                 <ul>
                     {this.props.users.map((value, index) => {
-                        return <li key={index}>{value.toString()}</li>;
+                        return <li key={index}>{value ? value.toString() : 'Unknown User'}</li>;
                     })}
                 </ul>
             </div>
