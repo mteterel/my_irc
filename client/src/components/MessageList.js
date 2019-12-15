@@ -15,13 +15,13 @@ class MessageList extends Component {
                             {item.type === "system_error" &&
                             <span style={{fontWeight: "bold", color: "red"}}>{item.content}</span>}
                             {item.type === "user" && <><span
-                                style={{fontWeight: "bold"}}>{item.from}: </span><span><Emojify
-                                style={styles.emoji}>{item.content}</Emojify></span></>}
+                                style={{fontWeight: "bold"}}>{item.from}: </span><Emojify
+                                style={styles.emoji}>{item.content}</Emojify></>}
                             {item.type === "whisper" && <><span style={{
                                 fontWeight: "bold",
                                 color: "magenta"
                             }}>from [{item.from}]: <Emojify
-                                style={{height: 24, width: 24}}>{item.content}</Emojify></span></>}
+                                style={styles.emoji}>{item.content}</Emojify></span></>}
                         </List.Item>
                     )}
                 />
