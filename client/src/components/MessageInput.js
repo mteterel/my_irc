@@ -14,13 +14,13 @@ class MessageInput extends Component {
     }
 
     handleChange(e) {
-        this.setState({ userInput: e.target.value });
+        this.setState({userInput: e.target.value});
     }
 
     handleKeyDown(e) {
         if (e.key === "Enter") {
             this.props.onSubmitMessage(e.target.value);
-            this.setState({ userInput: ''});
+            this.setState({userInput: ''});
         }
     }
 
@@ -28,9 +28,10 @@ class MessageInput extends Component {
         return (
             <div>
                 <Input placeholder={"Type text and press ENTER"}
-                              value={this.state.userInput}
-                              onChange={this.handleChange}
-                              onKeyDown={this.handleKeyDown}/>
+                       value={this.state.userInput}
+                       onChange={this.handleChange}
+                       onKeyDown={this.handleKeyDown}
+                       autoFocus={true}/>
             </div>
         );
     }
