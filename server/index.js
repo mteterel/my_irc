@@ -48,11 +48,11 @@ server.on('connection', (socket) => {
     const JOIN_CHANNEL_REQ = (channelName) => {
         channelName = utils.formatChannelName(channelName);
         if (false === channels.has(channelName))
-            return false;
+            return `The channel ${channelName} does not exist`;
 
         const channel = channels.get(channelName);
         if (user.channels.includes(channel))
-            return false;
+            return `You are already in the channel ${channelName}`;
 
         server.to(channelName).emit("CHANNEL_USER_JOIN_INF", channelName, user.nickname);
         socket.join(channelName, (err) => {
@@ -66,11 +66,11 @@ server.on('connection', (socket) => {
     const LEAVE_CHANNEL_REQ = (channelName) => {
         channelName = utils.formatChannelName(channelName);
         if (false === channels.has(channelName))
-            return false;
+            return `The channel ${channelName} does not exist`;
 
         let channel = channels.get(channelName);
         if (false === user.channels.includes(channel))
-            return false;
+            return "You are not in the channel";
 
         server.to(channelName).emit("CHANNEL_USER_LEAVE_INF", channelName, user.nickname, 'User Leave');
         socket.leave(channelName, () => {
@@ -88,7 +88,7 @@ server.on('connection', (socket) => {
     const CREATE_CHANNEL_REQ = (channelName) => {
         channelName = utils.formatChannelName(channelName);
         if (true === channels.has(channelName))
-            return false;
+            return `The channel ${channelName} already exists`;
 
         const channel = {
             name: channelName,
@@ -107,11 +107,11 @@ server.on('connection', (socket) => {
     const DESTROY_CHANNEL_REQ = (channelName) => {
         channelName = utils.formatChannelName(channelName);
         if (false === channels.has(channelName))
-            return false;
+            return "The channel does not exists";
 
         const channel = channels.get(channelName);
         if (false === channel.users.find(v => v.nickname === user.nickname && v.role === "admin"))
-            return false;
+            return "You are not allowed to run this command";
 
         server.to(channelName).emit('CHANNEL_LEAVE_ACK', channelName);
         server.in(channelName).clients((error, clients) => {
@@ -126,7 +126,18 @@ server.on('connection', (socket) => {
     };
 
     const WHISPER_MESSAGE_REQ = (commandArray) => {
+        let targetUser = null;
+        users.forEach((u) => {
+            if (u.nickname === commandArray[1][0])
+                targetUser = u;
+        });
 
+        if (targetUser === null)
+            return "The user does not exists";
+
+        let messageContent = commandArray.splice(2).map(v => v[0] + " ");
+        server.to(targetUser.id).emit("WHISPER_MESSAGE_INF", user.nickname, messageContent);
+        return true;
     };
 
     socket.on('CHANNEL_MESSAGE_REQ', (channelName, message) => {
@@ -138,20 +149,35 @@ server.on('connection', (socket) => {
             try {
                 console.log(JSON.stringify(commandArray));
                 switch (commandName) {
-                    case "/join":
-                        JOIN_CHANNEL_REQ(commandArray[1][0]);
+                    case "/join": {
+                        const result = JOIN_CHANNEL_REQ(commandArray[1][0]);
+                        if (result !== true)
+                            socket.emit("SERVER_ERROR_INF", result);
+                    }
                         break;
-                    case "/leave":
-                        LEAVE_CHANNEL_REQ(commandArray[1][0]);
+                    case "/leave": {
+                        const result = LEAVE_CHANNEL_REQ(commandArray[1][0]);
+                        if (result !== true)
+                            socket.emit("SERVER_ERROR_INF", result);
+                    }
                         break;
-                    case "/create":
-                        CREATE_CHANNEL_REQ(commandArray[1][0]);
+                    case "/create": {
+                        const result = CREATE_CHANNEL_REQ(commandArray[1][0]);
+                        if (result !== true)
+                            socket.emit("SERVER_ERROR_INF", result);
+                    }
                         break;
-                    case "/delete":
-                        DESTROY_CHANNEL_REQ(commandArray[1][0]);
+                    case "/delete": {
+                        const result = DESTROY_CHANNEL_REQ(commandArray[1][0]);
+                        if (result !== true)
+                            socket.emit("SERVER_ERROR_INF", result);
+                    }
                         break;
-                    case "/nick":
-                        NICK_CHANGE_REQ(commandArray[1][0]);
+                    case "/nick": {
+                        const result = NICK_CHANGE_REQ(commandArray[1][0]);
+                        if (result !== true)
+                            socket.emit("SERVER_ERROR_INF", result);
+                    }
                         break;
                     case "/list":
                         const allChannels = [];
@@ -164,15 +190,17 @@ server.on('connection', (socket) => {
                         channel.users.forEach(v => allUsers.push(v.nickname));
                         socket.emit('CHANNEL_USER_LIST_INF', allUsers.length, allUsers);
                         break;
-                    case "/msg":
-                        WHISPER_MESSAGE_REQ(commandArray);
+                    case "/msg": {
+                        const result = WHISPER_MESSAGE_REQ(commandArray);
+                        if (result !== true)
+                            socket.emit("SERVER_ERROR_INF", result);
+                    }
                         break;
                     default:
-                        socket.emit("SERVER_ERROR_INF", "Unknown command. Type /help for a list");
+                        socket.emit("SERVER_ERROR_INF", "Unknown command");
                         break;
                 }
-            }
-            catch(err) {
+            } catch (err) {
                 socket.emit("SERVER_ERROR_INF", `An error occurred while processing the command: ${err.toString()}`);
             }
         }

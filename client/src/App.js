@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {Badge, Tabs} from "antd";
+import {Badge, Layout, Tabs} from "antd";
 import ChatView from "./components/ChatView";
 import LoginModal from "./components/LoginModal";
 import io from 'socket.io-client';
@@ -93,6 +93,12 @@ class App extends Component {
             this.setState({channels: this.state.channels.filter(v => v.name !== channelName)});
         });
 
+        socket.on('SERVER_ERROR_INF', (content) => {
+            const channel = this.state.activeChannel;
+            channel.messages.push({type: "system_error", content: content});
+            this.forceUpdate();
+        });
+
         socket.on('CHANNEL_MESSAGE_INF', (channelName, senderNickname, content) => {
             const channel = this.state.channels.find(v => v.name === channelName);
             if (channel.name !== this.state.activeChannel.name)
@@ -133,6 +139,17 @@ class App extends Component {
             });
             this.forceUpdate();
         });
+
+        socket.on("WHISPER_MESSAGE_INF", (sourceNickname, message) => {
+            this.state.channels.forEach(c => {
+                c.messages.push({
+                    type: "whisper",
+                    from: sourceNickname,
+                    content: message,
+                })
+            });
+            this.forceUpdate();
+        });
     }
 
     onSubmitLogin(nickname, callback) {
@@ -170,18 +187,20 @@ class App extends Component {
 
     render() {
         return (
-            <div className={"App"}>
-                {!this.state.isLoggedIn && <LoginModal onSubmitLogin={this.onSubmitLogin}/>}
-                <Tabs onChange={this.onChannelTabChange}>
-                    {this.state.channels.map((v, index) =>
-                        <Tabs.TabPane
-                            tab={<Badge count={v.unreadMessages} dot><span>{v.name}</span></Badge>}
-                            key={v.name}>
-                            <ChatView channel={v} onSubmitMessage={this.onSubmitMessage}/>
-                        </Tabs.TabPane>
-                    )}
-                </Tabs>
-            </div>
+            <Layout style={{ height: "100vh" }}>
+                <div className={"App"}>
+                    {!this.state.isLoggedIn && <LoginModal onSubmitLogin={this.onSubmitLogin}/>}
+                    <Tabs onChange={this.onChannelTabChange}>
+                        {this.state.channels.map((v, index) =>
+                            <Tabs.TabPane
+                                tab={<Badge count={v.unreadMessages} dot><span>{v.name}</span></Badge>}
+                                key={v.name}>
+                                <ChatView channel={v} onSubmitMessage={this.onSubmitMessage}/>
+                            </Tabs.TabPane>
+                        )}
+                    </Tabs>
+                </div>
+            </Layout>
         );
     }
 

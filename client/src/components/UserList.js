@@ -21,13 +21,16 @@ class UserList extends Component {
 
     render() {
         return (
-            <List
-                size="small"
-                dataSource={this.props.users}
-                renderItem={v => (
-                    <List.Item>{this.renderUserItem(v)}</List.Item>
-                )}
-            />
+            <>
+                <p>{this.props.users.length} user(s) in this channel:</p>
+                <List
+                    size="small"
+                    dataSource={this.props.users}
+                    renderItem={v => (
+                        <List.Item>{this.renderUserItem(v)}</List.Item>
+                    )}
+                />
+            </>
         );
     }
 }
