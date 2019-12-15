@@ -43,6 +43,12 @@ class App extends Component {
     bindMessageEvents(socket) {
         socket.on('NICK_CHANGE_ACK', (nickname, success) => {
             if (success) {
+                this.state.channels.forEach(v => {
+                    const otherUser = v.users.find(v => v.nickname === this.state.userNickname);
+                    if (otherUser)
+                        otherUser.nickname = nickname;
+                });
+
                 this.setState({userNickname: nickname}, () => {
                     this.state.channels.forEach((v) => {
                         v.messages.push({
@@ -79,18 +85,24 @@ class App extends Component {
         });
 
         socket.on('CHANNEL_JOIN_ACK', (channelName, channelUsers, channelHistory) => {
+            const channel = {
+                name: channelName,
+                messages: channelHistory,
+                users: channelUsers,
+                unreadMessages: 0
+            };
+
             this.setState({
-                channels: [...this.state.channels, {
-                    name: channelName,
-                    messages: channelHistory,
-                    users: channelUsers,
-                    unreadMessages: 0
-                }]
+                channels: [...this.state.channels, channel],
+                activeChannel: channel,
             });
         });
 
         socket.on('CHANNEL_LEAVE_ACK', (channelName) => {
-            this.setState({channels: this.state.channels.filter(v => v.name !== channelName)});
+            this.setState({
+                channels: this.state.channels.filter(v => v.name !== channelName),
+                activeChannel: null
+            });
         });
 
         socket.on('SERVER_ERROR_INF', (content) => {
@@ -150,6 +162,16 @@ class App extends Component {
             });
             this.forceUpdate();
         });
+
+        socket.on("SERVER_MESSAGE_INF", (content) => {
+            this.state.channels.forEach(c => {
+                c.messages.push({
+                    type: "system",
+                    content: content,
+                })
+            });
+            this.forceUpdate();
+        })
     }
 
     onSubmitLogin(nickname, callback) {
@@ -190,7 +212,7 @@ class App extends Component {
             <Layout style={{ height: "100vh" }}>
                 <div className={"App"}>
                     {!this.state.isLoggedIn && <LoginModal onSubmitLogin={this.onSubmitLogin}/>}
-                    <Tabs onChange={this.onChannelTabChange}>
+                    <Tabs onChange={this.onChannelTabChange} activeKey={this.state.activeChannel ? this.state.activeChannel.name : null}>
                         {this.state.channels.map((v, index) =>
                             <Tabs.TabPane
                                 tab={<Badge count={v.unreadMessages} dot><span>{v.name}</span></Badge>}

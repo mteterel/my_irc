@@ -101,6 +101,8 @@ server.on('connection', (socket) => {
             user.channels.push(channel);
             socket.emit('CHANNEL_JOIN_ACK', channelName, channel.users, channel.messages);
         });
+
+        server.emit("SERVER_MESSAGE_INF", `${user.nickname} created the channel ${channelName}`);
         return true;
     };
 
@@ -122,6 +124,7 @@ server.on('connection', (socket) => {
             }
         });
         channels.delete(channelName);
+        server.emit("SERVER_MESSAGE_INF", `Channel ${channelName} has been deleted by ${user.nickname}`);
         return true;
     };
 
