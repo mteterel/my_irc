@@ -10,8 +10,8 @@ class MessageList extends Component {
                     dataSource={this.props.messages}
                     renderItem={item => (
                         <List.Item>
-                            <span style={{fontWeight: "bold"}}>{item.type === "system" ? "[System Message]" : item.from}:&nbsp;</span>
-                            <span>{item.content}</span>
+                            {item.type === "system" && <span style={{fontWeight: "bold"}}>{item.content}</span>}
+                            {item.type !== "system" && <><span style={{fontWeight: "bold"}}>{item.from}:</span><span>{item.content}</span></>}
                         </List.Item>
                     )}
                 />

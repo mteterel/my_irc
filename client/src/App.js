@@ -149,22 +149,13 @@ class App extends Component {
     }
 
     onSubmitMessage(userMessage) {
-        if (userMessage === "join") {
-            this.socket.emit('JOIN_CHANNEL_REQ', '#webacademie', () => {
-            });
-        } else if (userMessage === "create") {
-            this.socket.emit('CREATE_CHANNEL_REQ', '#webacademie', () => {
-            });
-        } else if (userMessage === "nick") {
-            this.socket.emit('NICK_CHANGE_REQ', 'this is a test nick', () => {
-            });
-        } else if (userMessage === "leave") {
-            this.socket.emit('LEAVE_CHANNEL_REQ', '#webacademie', () => {
-            });
-        } else {
-            this.socket.emit('CHANNEL_MESSAGE_REQ', '#webacademie', userMessage, () => {
-            });
-        }
+        if (userMessage.startsWith("/users"))
+            userMessage = "/users " + this.state.activeChannel.name;
+
+        let channelName = this.state.activeChannel.name;
+        channelName = channelName === "System" ? null : channelName;
+
+        this.socket.emit('CHANNEL_MESSAGE_REQ', channelName, userMessage);
     }
 
     initializePostLogin() {
