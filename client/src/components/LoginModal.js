@@ -41,12 +41,12 @@ class LoginModal extends Component {
                 visible={true}
                 closable={false}
                 footer={null}>
-                <Form>
+                <Form onSubmit={e => { e.preventDefault(); this.handleSubmit(); }}>
                     <Form.Item validateStatus={this.state.isError ? "error" : ""}
                                help={this.state.isError && "This nickname is already in use."}>
                         <Input placeholder={"Enter your nickname"} onChange={this.handleChange}/>
                     </Form.Item>
-                    <Button type="primary" loading={this.state.isSubmitting} onClick={this.handleSubmit}>
+                    <Button type="primary" htmlType="submit" loading={this.state.isSubmitting}>
                         Login
                     </Button>
                 </Form>
