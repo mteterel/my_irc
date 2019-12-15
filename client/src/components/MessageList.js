@@ -15,8 +15,8 @@ class MessageList extends Component {
                             {item.type === "system_error" &&
                             <span style={{fontWeight: "bold", color: "red"}}>{item.content}</span>}
                             {item.type === "user" && <><span
-                                style={{fontWeight: "bold"}}>{item.from}: </span><span><Emojify
-                                style={styles.emoji}>{item.content}</Emojify></span></>}
+                                style={{fontWeight: "bold"}}>{item.from}: </span><Emojify
+                                style={styles.emoji}>{item.content}</Emojify></>}
                             {item.type === "whisper" && <><span style={{
                                 fontWeight: "bold",
                                 color: "magenta"
